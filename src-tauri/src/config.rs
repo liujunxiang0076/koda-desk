@@ -1,4 +1,6 @@
-use tauri::AppHandle;
+use std::{fs, path::PathBuf};
+
+use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -58,6 +60,49 @@ impl Default for AppConfig {
     }
 }
 
-pub fn load_default_config(_app: &AppHandle) -> AppConfig {
-    AppConfig::default()
+pub fn load_config(app: &AppHandle) -> AppConfig {
+    let path = config_path(app);
+
+    match fs::read_to_string(&path) {
+        Ok(content) => match serde_json::from_str::<AppConfig>(&content) {
+            Ok(config) => config,
+            Err(error) => {
+                eprintln!("[koda-desk] failed to parse config, using defaults: {error}");
+                AppConfig::default()
+            }
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => AppConfig::default(),
+        Err(error) => {
+            eprintln!("[koda-desk] failed to read config, using defaults: {error}");
+            AppConfig::default()
+        }
+    }
+}
+
+pub fn save_config(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
+    let path = config_path(app);
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    let content = serde_json::to_string_pretty(config).map_err(|error| error.to_string())?;
+    fs::write(path, content).map_err(|error| error.to_string())
+}
+
+pub fn update_config(
+    app: &AppHandle,
+    update: impl FnOnce(&mut AppConfig),
+) -> Result<AppConfig, String> {
+    let mut config = load_config(app);
+    update(&mut config);
+    save_config(app, &config)?;
+    Ok(config)
+}
+
+fn config_path(app: &AppHandle) -> PathBuf {
+    app.path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .join("config.json")
 }
