@@ -3,6 +3,7 @@ import type { PetManifest } from "./petManifest";
 export interface AnimationPlayer {
   draw(timestamp: number): void;
   reset(): void;
+  setState(state: string): void;
 }
 
 export function createAnimationPlayer(
@@ -11,8 +12,9 @@ export function createAnimationPlayer(
   manifest: PetManifest,
   state = "idle",
 ): AnimationPlayer {
-  const animation = manifest.animations[state] ?? manifest.animations.idle;
-  const frameDuration = 1000 / clamp(animation.fps, 1, 24);
+  let currentState = state;
+  let animation = manifest.animations[currentState] ?? manifest.animations.idle;
+  let frameDuration = 1000 / clamp(animation.fps, 1, 24);
   let frameCursor = 0;
   let lastFrameAt = 0;
 
@@ -43,6 +45,18 @@ export function createAnimationPlayer(
   return {
     draw,
     reset() {
+      frameCursor = 0;
+      lastFrameAt = 0;
+    },
+    setState(nextState: string) {
+      const nextAnimation = manifest.animations[nextState] ?? manifest.animations.idle;
+      if (nextAnimation === animation && nextState === currentState) {
+        return;
+      }
+
+      currentState = nextState;
+      animation = nextAnimation;
+      frameDuration = 1000 / clamp(animation.fps, 1, 24);
       frameCursor = 0;
       lastFrameAt = 0;
     },
