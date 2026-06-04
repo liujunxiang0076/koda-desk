@@ -10,8 +10,48 @@
     <div id="context-menu" role="menu" hidden>
       <button type="button" data-action="hide">隐藏宠物</button>
       <button type="button" data-action="show">显示宠物</button>
+      <button type="button" data-action="settings">设置</button>
       <button type="button" data-action="quit">退出应用</button>
     </div>
+    <section id="settings-panel" aria-label="Koda Desk 设置" hidden>
+      <header>
+        <div>
+          <p>Koda Desk</p>
+          <h1>设置</h1>
+        </div>
+        <button type="button" data-action="close-settings" aria-label="关闭设置">×</button>
+      </header>
+      <label>
+        <span>宠物</span>
+        <select id="settings-pet"></select>
+      </label>
+      <label>
+        <span>缩放</span>
+        <select id="settings-scale">
+          <option value="small">小</option>
+          <option value="medium">中</option>
+          <option value="large">大</option>
+        </select>
+      </label>
+      <label>
+        <span>模式</span>
+        <select id="settings-mode">
+          <option value="auto">自动</option>
+          <option value="manual">手动</option>
+        </select>
+      </label>
+      <label>
+        <span>状态</span>
+        <select id="settings-state">
+          <option value="idle">摸鱼 / 发呆</option>
+          <option value="working">疯狂敲代码</option>
+          <option value="waiting">等待确认</option>
+          <option value="failed">崩溃趴键盘</option>
+          <option value="review">认真检查</option>
+          <option value="dragging">拖动中</option>
+        </select>
+      </label>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

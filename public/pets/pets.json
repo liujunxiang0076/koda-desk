@@ -3,10 +3,12 @@
   "pets": [
     {
       "name": "koda",
+      "displayName": "Koda",
       "manifest": "/pets/koda/pet.json"
     },
     {
       "name": "lumen",
+      "displayName": "Lumen",
       "manifest": "/pets/lumen/pet.json"
     }
   ]
