@@ -39,7 +39,7 @@ const contextMenu = menu;
 const config = await loadConfig();
 const initialPet = getInitialPetName(config);
 const initialScale = getInitialPetScale(config);
-const initialState = config.behavior.state || "idle";
+const initialState = config.behavior.mode === "auto" ? inferAutomaticState() : config.behavior.state || "idle";
 const pet = createPetCanvas(petCanvas, `/pets/${initialPet}/pet.json`, initialScale, initialState);
 
 await hydrateSettings(config, initialPet, initialScale, initialState);
@@ -169,9 +169,7 @@ settingsScale.addEventListener("change", () => {
 });
 
 settingsMode.addEventListener("change", () => {
-  invoke("set_behavior_state", { mode: settingsMode.value, state: settingsState.value }).catch((error) => {
-    console.error(`[koda-desk] failed to save behavior mode ${settingsMode.value}`, error);
-  });
+  selectState(settingsState.value, settingsMode.value);
 });
 
 settingsState.addEventListener("change", () => {
@@ -209,6 +207,7 @@ async function hydrateSettings(
   settingsScale.value = initialScale;
   settingsMode.value = config.behavior.mode || "auto";
   settingsState.value = initialState;
+  settingsState.disabled = settingsMode.value === "auto";
 }
 
 async function loadConfig(): Promise<AppConfig> {

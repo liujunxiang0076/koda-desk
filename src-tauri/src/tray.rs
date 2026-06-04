@@ -8,10 +8,9 @@ use crate::window;
 
 pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     let toggle = MenuItem::with_id(app, "toggle", "显示/隐藏宠物", true, None::<&str>)?;
-    let default_pet = MenuItem::with_id(app, "pet:default", "Default", true, None::<&str>)?;
     let koda = MenuItem::with_id(app, "pet:koda", "Koda", true, None::<&str>)?;
     let lumen = MenuItem::with_id(app, "pet:lumen", "Lumen", true, None::<&str>)?;
-    let pet_menu = Submenu::with_items(app, "切换宠物", true, &[&default_pet, &koda, &lumen])?;
+    let pet_menu = Submenu::with_items(app, "切换宠物", true, &[&koda, &lumen])?;
     let scale_small = MenuItem::with_id(app, "scale:small", "小", true, None::<&str>)?;
     let scale_medium = MenuItem::with_id(app, "scale:medium", "中", true, None::<&str>)?;
     let scale_large = MenuItem::with_id(app, "scale:large", "大", true, None::<&str>)?;
@@ -30,7 +29,6 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "toggle" => window::toggle_pet(app),
-            "pet:default" => select_pet(app, "default"),
             "pet:koda" => select_pet(app, "koda"),
             "pet:lumen" => select_pet(app, "lumen"),
             "scale:small" => emit_selection(app, "pet:scale", "small"),
