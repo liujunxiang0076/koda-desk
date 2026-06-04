@@ -1,0 +1,13 @@
+{
+  "default": "koda",
+  "pets": [
+    {
+      "name": "koda",
+      "manifest": "/pets/koda/pet.json"
+    },
+    {
+      "name": "lumen",
+      "manifest": "/pets/lumen/pet.json"
+    }
+  ]
+}

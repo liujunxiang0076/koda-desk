@@ -1,0 +1,18 @@
+{
+  "name": "default",
+  "version": "1.0.0",
+  "spritesheet": "spritesheet.webp",
+  "frame": {
+    "width": 192,
+    "height": 208,
+    "columns": 8,
+    "rows": 9
+  },
+  "animations": {
+    "idle": {
+      "frames": [0, 1, 2, 3],
+      "fps": 8,
+      "loop": true
+    }
+  }
+}
