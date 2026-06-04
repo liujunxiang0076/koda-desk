@@ -1,16 +1,23 @@
 use tauri::{
-    menu::{Menu, MenuItem, Submenu},
+    menu::{IsMenuItem, Menu, MenuItem, Submenu},
     tray::TrayIconBuilder,
     Emitter,
 };
 
+use crate::pet_registry;
 use crate::window;
 
 pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     let toggle = MenuItem::with_id(app, "toggle", "显示/隐藏宠物", true, None::<&str>)?;
-    let koda = MenuItem::with_id(app, "pet:koda", "Koda", true, None::<&str>)?;
-    let lumen = MenuItem::with_id(app, "pet:lumen", "Lumen", true, None::<&str>)?;
-    let pet_menu = Submenu::with_items(app, "切换宠物", true, &[&koda, &lumen])?;
+    let pet_items = pet_registry::load_pet_registry(app)
+        .into_iter()
+        .map(|pet| MenuItem::with_id(app, format!("pet:{}", pet.name), pet.display_name, true, None::<&str>))
+        .collect::<tauri::Result<Vec<_>>>()?;
+    let pet_menu_items = pet_items
+        .iter()
+        .map(|item| item as &dyn IsMenuItem<tauri::Wry>)
+        .collect::<Vec<_>>();
+    let pet_menu = Submenu::with_items(app, "切换宠物", true, &pet_menu_items)?;
     let scale_small = MenuItem::with_id(app, "scale:small", "小", true, None::<&str>)?;
     let scale_medium = MenuItem::with_id(app, "scale:medium", "中", true, None::<&str>)?;
     let scale_large = MenuItem::with_id(app, "scale:large", "大", true, None::<&str>)?;
@@ -29,8 +36,6 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "toggle" => window::toggle_pet(app),
-            "pet:koda" => select_pet(app, "koda"),
-            "pet:lumen" => select_pet(app, "lumen"),
             "scale:small" => emit_selection(app, "pet:scale", "small"),
             "scale:medium" => emit_selection(app, "pet:scale", "medium"),
             "scale:large" => emit_selection(app, "pet:scale", "large"),
@@ -39,6 +44,7 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             "state:working" => emit_selection(app, "pet:state", "working"),
             "settings" => emit_selection(app, "settings:open", "tray"),
             "quit" => app.exit(0),
+            id if id.starts_with("pet:") => select_pet(app, id.trim_start_matches("pet:")),
             id => eprintln!("[koda-desk] unhandled tray menu item: {id}"),
         });
 
@@ -50,7 +56,7 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-fn select_pet(app: &tauri::AppHandle, pet: &'static str) {
+fn select_pet(app: &tauri::AppHandle, pet: &str) {
     emit_selection(app, "pet:selected", pet);
 
     if let Err(error) = window::show_pet(app) {
@@ -58,8 +64,8 @@ fn select_pet(app: &tauri::AppHandle, pet: &'static str) {
     }
 }
 
-fn emit_selection(app: &tauri::AppHandle, event: &str, value: &'static str) {
-    if let Err(error) = app.emit(event, value) {
+fn emit_selection(app: &tauri::AppHandle, event: &str, value: &str) {
+    if let Err(error) = app.emit(event, value.to_string()) {
         eprintln!("[koda-desk] failed to emit {event}: {error}");
     }
 }

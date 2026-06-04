@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { createPetCanvas, type PetScale } from "./renderer/petCanvas";
+import { createPetCanvas, type PetDisplaySize, type PetScale } from "./renderer/petCanvas";
+import { loadPetRegistry, type PetRegistry, type PetRegistryEntry } from "./renderer/petRegistry";
 import "./styles/app.css";
 
 interface AppConfig {
@@ -15,15 +16,6 @@ interface AppConfig {
   };
 }
 
-interface PetList {
-  pets: Array<{
-    name: string;
-    displayName?: string;
-    manifest: string;
-  }>;
-}
-
-const supportedPets = new Set(["koda", "lumen"]);
 const supportedScales = new Set<PetScale>(["small", "medium", "large"]);
 const canvas = queryRequired<HTMLCanvasElement>("#pet-canvas");
 const menu = queryRequired<HTMLDivElement>("#context-menu");
@@ -36,25 +28,22 @@ const currentWindow = getCurrentWindow();
 
 const petCanvas = canvas;
 const contextMenu = menu;
+const petRegistry = await loadPetRegistry();
 const config = await loadConfig();
-const initialPet = getInitialPetName(config);
+const initialPet = getInitialPet(config, petRegistry);
 const initialScale = getInitialPetScale(config);
 const initialState = config.behavior.mode === "auto" ? inferAutomaticState() : config.behavior.state || "idle";
-const pet = createPetCanvas(petCanvas, `/pets/${initialPet}/pet.json`, initialScale, initialState);
+const pet = createPetCanvas(petCanvas, initialPet.manifest, initialScale, initialState);
 
-await hydrateSettings(config, initialPet, initialScale, initialState);
-fitPetWindow(initialScale).catch((error) => {
-  console.error("[koda-desk] failed to fit initial pet window", error);
-});
-
-pet.start().catch((error) => {
+hydrateSettings(config, initialPet.name, initialScale, initialState, petRegistry);
+pet.start().then(() => fitPetWindow()).catch((error) => {
   console.error("[koda-desk] failed to start pet renderer", error);
 });
 
 listen<string>("pet:selected", (event) => {
   const petName = event.payload;
 
-  if (!isSupportedPet(petName)) {
+  if (!petRegistry.has(petName)) {
     console.error(`[koda-desk] unsupported pet selected: ${petName}`);
     return;
   }
@@ -186,23 +175,16 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-async function hydrateSettings(
+function hydrateSettings(
   config: AppConfig,
   initialPet: string,
   initialScale: PetScale,
   initialState: string,
-): Promise<void> {
-  try {
-    const response = await fetch("/pets/pets.json");
-    const petList = (await response.json()) as PetList;
-    settingsPet.replaceChildren(
-      ...petList.pets.map((entry) => new Option(entry.displayName ?? entry.name, entry.name)),
-    );
-  } catch (error) {
-    console.error("[koda-desk] failed to load pet list", error);
-    settingsPet.replaceChildren(new Option("Koda", "koda"), new Option("Lumen", "lumen"));
-  }
-
+  registry: PetRegistry,
+): void {
+  settingsPet.replaceChildren(
+    ...registry.pets.map((entry) => new Option(entry.displayName, entry.name)),
+  );
   settingsPet.value = initialPet;
   settingsScale.value = initialScale;
   settingsMode.value = config.behavior.mode || "auto";
@@ -228,20 +210,27 @@ async function saveWindowPosition(): Promise<void> {
 }
 
 function selectPet(petName: string): void {
-  localStorage.setItem("koda-desk.currentPet", petName);
-  settingsPet.value = petName;
-  invoke("set_current_pet", { pet: petName }).catch((error) => {
-    console.error(`[koda-desk] failed to save current pet ${petName}`, error);
+  const nextPet = petRegistry.get(petName);
+
+  if (!nextPet) {
+    console.error(`[koda-desk] unsupported pet selected: ${petName}`);
+    return;
+  }
+
+  localStorage.setItem("koda-desk.currentPet", nextPet.name);
+  settingsPet.value = nextPet.name;
+  invoke("set_current_pet", { pet: nextPet.name }).catch((error) => {
+    console.error(`[koda-desk] failed to save current pet ${nextPet.name}`, error);
   });
-  pet.switchPet(`/pets/${petName}/pet.json`).catch((error) => {
-    console.error(`[koda-desk] failed to switch pet to ${petName}`, error);
+  pet.switchPet(nextPet.manifest).then(() => fitPetWindow()).catch((error) => {
+    console.error(`[koda-desk] failed to switch pet to ${nextPet.name}`, error);
   });
 }
 
 function selectScale(scale: PetScale): void {
   settingsScale.value = scale;
-  pet.setScale(scale);
-  fitPetWindow(scale).catch((error) => {
+  const displaySize = pet.setScale(scale);
+  fitPetWindow(displaySize).catch((error) => {
     console.error(`[koda-desk] failed to resize pet window for ${scale}`, error);
   });
   invoke("set_pet_scale", { scale }).catch((error) => {
@@ -275,18 +264,17 @@ function closeSettings(): void {
   invoke("close_settings").catch((error) => {
     console.error("[koda-desk] failed to close settings", error);
   });
-  fitPetWindow(settingsScale.value as PetScale).catch((error) => {
+  fitPetWindow().catch((error) => {
     console.error("[koda-desk] failed to restore pet window size", error);
   });
 }
 
-async function fitPetWindow(scale: PetScale): Promise<void> {
+async function fitPetWindow(displaySize: PetDisplaySize = pet.getDisplaySize()): Promise<void> {
   if (!settingsPanel.hidden) {
     return;
   }
 
-  const factor = scale === "small" ? 0.75 : scale === "large" ? 1.35 : 1;
-  await currentWindow.setSize(new LogicalSize(Math.round(192 * factor), Math.round(208 * factor)));
+  await currentWindow.setSize(new LogicalSize(displaySize.width, displaySize.height));
 }
 
 function inferAutomaticState(): string {
@@ -308,32 +296,24 @@ function hideContextMenu(): void {
   contextMenu.hidden = true;
 }
 
-function getInitialPetName(config: AppConfig): string {
+function getInitialPet(config: AppConfig, registry: PetRegistry): PetRegistryEntry {
   const urlPet = new URLSearchParams(window.location.search).get("pet");
 
-  if (urlPet && isSupportedPet(urlPet)) {
+  if (urlPet && registry.has(urlPet)) {
     localStorage.setItem("koda-desk.currentPet", urlPet);
-    return urlPet;
+    return registry.resolve(urlPet);
   }
 
   const savedPet = localStorage.getItem("koda-desk.currentPet");
-  if (savedPet && isSupportedPet(savedPet)) {
-    return savedPet;
+  if (savedPet && registry.has(savedPet)) {
+    return registry.resolve(savedPet);
   }
 
-  if (isSupportedPet(config.pet.current)) {
-    return config.pet.current;
-  }
-
-  return "koda";
+  return registry.resolve(config.pet.current);
 }
 
 function getInitialPetScale(config: AppConfig): PetScale {
   return isSupportedScale(config.pet.scale) ? config.pet.scale : "medium";
-}
-
-function isSupportedPet(value: string): boolean {
-  return supportedPets.has(value);
 }
 
 function isSupportedScale(value: string): value is PetScale {

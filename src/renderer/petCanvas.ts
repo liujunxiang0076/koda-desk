@@ -5,11 +5,17 @@ export interface PetCanvasController {
   start(): Promise<void>;
   stop(): void;
   switchPet(manifestUrl: string): Promise<void>;
-  setScale(scale: PetScale): void;
+  setScale(scale: PetScale): PetDisplaySize;
   setState(state: string): void;
+  getDisplaySize(): PetDisplaySize;
 }
 
 export type PetScale = "small" | "medium" | "large";
+
+export interface PetDisplaySize {
+  width: number;
+  height: number;
+}
 
 const scaleFactors: Record<PetScale, number> = {
   small: 0.75,
@@ -75,16 +81,22 @@ export function createPetCanvas(
     await start();
   }
 
-  function setScale(scale: PetScale): void {
+  function setScale(scale: PetScale): PetDisplaySize {
     currentScale = scale;
     if (currentManifest) {
       resizeCanvas(canvas, currentManifest, currentScale);
     }
+
+    return getDisplaySize();
   }
 
   function setState(state: string): void {
     currentState = state;
     player?.setState(state);
+  }
+
+  function getDisplaySize(): PetDisplaySize {
+    return getScaledSize(currentManifest, canvas, currentScale);
   }
 
   async function bootstrap(): Promise<void> {
@@ -111,15 +123,30 @@ export function createPetCanvas(
     animationFrame = requestAnimationFrame(tick);
   }
 
-  return { start, stop, switchPet, setScale, setState };
+  return { start, stop, switchPet, setScale, setState, getDisplaySize };
 }
 
 function resizeCanvas(canvas: HTMLCanvasElement, manifest: PetManifest, scale: PetScale): void {
-  const scaleFactor = scaleFactors[scale];
+  const displaySize = getScaledSize(manifest, canvas, scale);
   canvas.width = manifest.frame.width;
   canvas.height = manifest.frame.height;
-  canvas.style.width = `${Math.round(manifest.frame.width * scaleFactor)}px`;
-  canvas.style.height = `${Math.round(manifest.frame.height * scaleFactor)}px`;
+  canvas.style.width = `${displaySize.width}px`;
+  canvas.style.height = `${displaySize.height}px`;
+}
+
+function getScaledSize(
+  manifest: PetManifest | null,
+  canvas: HTMLCanvasElement,
+  scale: PetScale,
+): PetDisplaySize {
+  const scaleFactor = scaleFactors[scale];
+  const width = manifest?.frame.width ?? canvas.width;
+  const height = manifest?.frame.height ?? canvas.height;
+
+  return {
+    width: Math.round(width * scaleFactor),
+    height: Math.round(height * scaleFactor),
+  };
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
