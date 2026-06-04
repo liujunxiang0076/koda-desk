@@ -1,0 +1,63 @@
+import type { PetManifest } from "./petManifest";
+
+export interface AnimationPlayer {
+  draw(timestamp: number): void;
+  reset(): void;
+}
+
+export function createAnimationPlayer(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  manifest: PetManifest,
+  state = "idle",
+): AnimationPlayer {
+  const animation = manifest.animations[state] ?? manifest.animations.idle;
+  const frameDuration = 1000 / clamp(animation.fps, 1, 24);
+  let frameCursor = 0;
+  let lastFrameAt = 0;
+
+  function draw(timestamp: number): void {
+    if (lastFrameAt === 0 || timestamp - lastFrameAt >= frameDuration) {
+      frameCursor = nextCursor(frameCursor, animation.frames.length, animation.loop);
+      lastFrameAt = timestamp;
+    }
+
+    const frameIndex = animation.frames[frameCursor] ?? animation.frames[0] ?? 0;
+    const sourceX = (frameIndex % manifest.frame.columns) * manifest.frame.width;
+    const sourceY = Math.floor(frameIndex / manifest.frame.columns) * manifest.frame.height;
+
+    context.clearRect(0, 0, manifest.frame.width, manifest.frame.height);
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      manifest.frame.width,
+      manifest.frame.height,
+      0,
+      0,
+      manifest.frame.width,
+      manifest.frame.height,
+    );
+  }
+
+  return {
+    draw,
+    reset() {
+      frameCursor = 0;
+      lastFrameAt = 0;
+    },
+  };
+}
+
+function nextCursor(current: number, total: number, loop: boolean): number {
+  if (total <= 1) {
+    return 0;
+  }
+
+  const next = current + 1;
+  return next >= total ? (loop ? 0 : total - 1) : next;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
