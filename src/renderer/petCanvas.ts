@@ -4,6 +4,7 @@ import { loadPetManifest, type PetManifest } from "./petManifest";
 export interface PetCanvasController {
   start(): Promise<void>;
   stop(): void;
+  switchPet(manifestUrl: string): Promise<void>;
 }
 
 export function createPetCanvas(canvas: HTMLCanvasElement, manifestUrl: string): PetCanvasController {
@@ -15,8 +16,10 @@ export function createPetCanvas(canvas: HTMLCanvasElement, manifestUrl: string):
 
   const drawContext = context;
   let animationFrame = 0;
+  let currentManifestUrl = manifestUrl;
   let player: AnimationPlayer | null = null;
   let starting: Promise<void> | null = null;
+  let loadVersion = 0;
 
   async function start(): Promise<void> {
     if (animationFrame || starting) {
@@ -42,11 +45,29 @@ export function createPetCanvas(canvas: HTMLCanvasElement, manifestUrl: string):
     }
   }
 
+  async function switchPet(nextManifestUrl: string): Promise<void> {
+    if (nextManifestUrl === currentManifestUrl && player) {
+      return;
+    }
+
+    stop();
+    currentManifestUrl = nextManifestUrl;
+    player = null;
+    loadVersion += 1;
+    await start();
+  }
+
   async function bootstrap(): Promise<void> {
     if (!player) {
-      const manifest = await loadPetManifest(manifestUrl);
+      const version = loadVersion;
+      const manifest = await loadPetManifest(currentManifestUrl);
       resizeCanvas(canvas, manifest);
-      const image = await loadImage(resolveAssetUrl(manifestUrl, manifest.spritesheet));
+      const image = await loadImage(resolveAssetUrl(currentManifestUrl, manifest.spritesheet));
+
+      if (version !== loadVersion) {
+        return;
+      }
+
       player = createAnimationPlayer(drawContext, image, manifest);
     }
 
@@ -59,7 +80,7 @@ export function createPetCanvas(canvas: HTMLCanvasElement, manifestUrl: string):
     animationFrame = requestAnimationFrame(tick);
   }
 
-  return { start, stop };
+  return { start, stop, switchPet };
 }
 
 function resizeCanvas(canvas: HTMLCanvasElement, manifest: PetManifest): void {

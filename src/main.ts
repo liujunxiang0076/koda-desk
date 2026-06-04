@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createPetCanvas } from "./renderer/petCanvas";
 import "./styles/app.css";
@@ -16,6 +17,22 @@ const contextMenu = menu;
 const pet = createPetCanvas(petCanvas, `/pets/${getInitialPetName()}/pet.json`);
 pet.start().catch((error) => {
   console.error("[koda-desk] failed to start pet renderer", error);
+});
+
+listen<string>("pet:selected", (event) => {
+  const petName = event.payload;
+
+  if (!isSupportedPet(petName)) {
+    console.error(`[koda-desk] unsupported pet selected: ${petName}`);
+    return;
+  }
+
+  localStorage.setItem("koda-desk.currentPet", petName);
+  pet.switchPet(`/pets/${petName}/pet.json`).catch((error) => {
+    console.error(`[koda-desk] failed to switch pet to ${petName}`, error);
+  });
+}).catch((error) => {
+  console.error("[koda-desk] failed to subscribe pet selection event", error);
 });
 
 petCanvas.addEventListener("mousedown", async (event) => {
@@ -81,18 +98,21 @@ function hideContextMenu(): void {
 }
 
 function getInitialPetName(): string {
-  const supportedPets = new Set(["koda", "lumen", "default"]);
   const urlPet = new URLSearchParams(window.location.search).get("pet");
 
-  if (urlPet && supportedPets.has(urlPet)) {
+  if (urlPet && isSupportedPet(urlPet)) {
     localStorage.setItem("koda-desk.currentPet", urlPet);
     return urlPet;
   }
 
   const savedPet = localStorage.getItem("koda-desk.currentPet");
-  if (savedPet && supportedPets.has(savedPet)) {
+  if (savedPet && isSupportedPet(savedPet)) {
     return savedPet;
   }
 
   return "koda";
+}
+
+function isSupportedPet(value: string): boolean {
+  return value === "koda" || value === "lumen" || value === "default";
 }

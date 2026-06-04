@@ -53,6 +53,7 @@ tmp/
 temp/
 *.local.json
 *.local.toml
+*.bak-*
 
 # Editor and OS files
 .idea/
