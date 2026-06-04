@@ -1,0 +1,17 @@
+# <type>: <中文动宾短句>
+#
+# 正文可选：说明为什么改、影响范围、验证方式。
+#
+# 类型参考：
+# feat      新功能
+# fix       缺陷修复
+# docs      文档规范
+# chore     仓库维护
+# refactor  不改变行为的整理
+# test      测试
+# build     构建/CI
+#
+# 提交前建议：
+# git diff --cached --check
+# npm run build
+# cargo check
