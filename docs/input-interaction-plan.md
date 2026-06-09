@@ -50,6 +50,38 @@
     }
   },
   "workstation": {
+    "assets": [
+      {
+        "src": "../shared/workstation/compact-desk-back.svg",
+        "x": 0,
+        "y": 0,
+        "width": 286,
+        "height": 246,
+        "layer": "back"
+      },
+      {
+        "src": "../shared/workstation/compact-desk-front.svg",
+        "x": 0,
+        "y": 0,
+        "width": 286,
+        "height": 246,
+        "layer": "front"
+      }
+    ],
+    "handAnchors": {
+      "left": {
+        "x": 116,
+        "y": 178
+      },
+      "right": {
+        "x": 150,
+        "y": 178
+      },
+      "mouse": {
+        "x": 158,
+        "y": 180
+      }
+    },
     "monitor": {
       "x": 184,
       "y": 48,
@@ -57,6 +89,7 @@
       "height": 58
     },
     "keyboard": {
+      "renderMode": "highlightOnly",
       "x": 104,
       "y": 176,
       "width": 154,
@@ -77,16 +110,19 @@
 
 - `stage`：最终 Canvas 舞台尺寸。没有该字段时继续使用 `frame.width` / `frame.height`。
 - `sprite`：角色 spritesheet 当前帧绘制到 stage 上的位置。没有该字段时继续铺满原始帧尺寸。
+- `workstation.assets`：工位视觉资源层，可加载 SVG / PNG / WebP 等图片。`back` 在角色后绘制，`front` 在角色后、输入高亮前绘制。
+- `workstation.handAnchors`：角色手部参考点，用于把输入目标和角色动作连起来。
 - `workstation.monitor`：电脑屏幕区域。
 - `workstation.keyboard`：键盘整体区域和键位布局。
+- `workstation.keyboard.renderMode`：`full` 表示由 Canvas 绘制完整键盘；`highlightOnly` 表示键盘底图由资源层提供，Canvas 只画按键反馈。
 - `workstation.keyboard.rows[].keys[]`：具体键位，`id` 对应输入事件 code，`aliases` 用于兼容简写。
 - `workstation.mouse`：鼠标区域。
 
 ## 当前第一版限制
 
-- 当前键盘和鼠标是 Canvas 覆盖层，不是最终像素美术。
+- 当前已有共享 SVG 工位资源层，仍不是最终像素美术。
 - `typing` / `mousing` 暂时复用现有工作动画帧。
-- 键盘反馈以高亮键位为主，还没有精确到角色手指落点。
+- 键盘反馈包含键位高亮和手部参考线，还没有精确到角色手指逐帧落点。
 - Windows 下已接入键鼠轮询；其他平台后续需要补对应系统实现。
 - 浏览器预览环境没有全局键鼠能力，只用页面自身 `keydown` / `mousemove` 事件模拟调试。
 
