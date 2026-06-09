@@ -1,12 +1,38 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use tauri::AppHandle;
 
-pub fn spawn_input_monitor(app: AppHandle) {
-    #[cfg(windows)]
-    windows::spawn(app);
+#[derive(Clone)]
+pub struct InputMonitor {
+    enabled: Arc<AtomicBool>,
+}
 
-    #[cfg(not(windows))]
-    {
-        let _ = app;
+impl InputMonitor {
+    pub fn new(enabled: bool) -> Self {
+        Self {
+            enabled: Arc::new(AtomicBool::new(enabled)),
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    pub fn spawn(&self, app: AppHandle) {
+        #[cfg(windows)]
+        windows::spawn(app, self.clone());
+
+        #[cfg(not(windows))]
+        {
+            let _ = app;
+        }
     }
 }
 
@@ -31,7 +57,7 @@ mod windows {
         UI::{Input::KeyboardAndMouse::GetAsyncKeyState, WindowsAndMessaging::GetCursorPos},
     };
 
-    use super::InputActivity;
+    use super::{InputActivity, InputMonitor};
 
     const POLL_INTERVAL: Duration = Duration::from_millis(60);
     const MOUSE_EMIT_INTERVAL: Duration = Duration::from_millis(90);
@@ -43,21 +69,28 @@ mod windows {
         label: &'static str,
     }
 
-    pub fn spawn(app: AppHandle) {
+    pub fn spawn(app: AppHandle, monitor: InputMonitor) {
         if let Err(error) = thread::Builder::new()
             .name("koda-input-monitor".to_string())
-            .spawn(move || poll_input(app))
+            .spawn(move || poll_input(app, monitor))
         {
             eprintln!("[koda-desk] failed to start input monitor: {error}");
         }
     }
 
-    fn poll_input(app: AppHandle) {
+    fn poll_input(app: AppHandle, monitor: InputMonitor) {
         let mut pressed = [false; 256];
         let mut last_cursor = cursor_position();
         let mut last_mouse_emit = Instant::now() - MOUSE_EMIT_INTERVAL;
 
         loop {
+            if !monitor.is_enabled() {
+                pressed = [false; 256];
+                last_cursor = cursor_position();
+                thread::sleep(POLL_INTERVAL);
+                continue;
+            }
+
             for key in watched_keys() {
                 let index = key.vkey as usize;
                 let is_down = is_key_down(key.vkey);

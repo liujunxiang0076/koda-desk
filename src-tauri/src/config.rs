@@ -27,9 +27,12 @@ pub struct WindowConfig {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BehaviorConfig {
     pub mode: String,
     pub state: String,
+    #[serde(default = "default_input_tracking_enabled")]
+    pub input_tracking_enabled: bool,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -53,12 +56,17 @@ impl Default for AppConfig {
             behavior: BehaviorConfig {
                 mode: "auto".to_string(),
                 state: "idle".to_string(),
+                input_tracking_enabled: true,
             },
             startup: StartupConfig {
                 launch_on_boot: false,
             },
         }
     }
+}
+
+fn default_input_tracking_enabled() -> bool {
+    true
 }
 
 pub fn load_config(app: &AppHandle) -> AppConfig {

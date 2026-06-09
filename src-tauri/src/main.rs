@@ -7,6 +7,7 @@ mod tray;
 mod window;
 
 use config::AppConfig;
+use tauri::Manager;
 
 #[tauri::command]
 fn get_config(app: tauri::AppHandle) -> AppConfig {
@@ -37,6 +38,19 @@ fn set_behavior_state(
         config.behavior.mode = mode;
         config.behavior.state = state;
     })
+}
+
+#[tauri::command]
+fn set_input_tracking_enabled(
+    app: tauri::AppHandle,
+    monitor: tauri::State<input::InputMonitor>,
+    enabled: bool,
+) -> Result<AppConfig, String> {
+    let config = config::update_config(&app, |config| {
+        config.behavior.input_tracking_enabled = enabled;
+    })?;
+    monitor.set_enabled(enabled);
+    Ok(config)
 }
 
 #[tauri::command]
@@ -88,6 +102,7 @@ fn main() {
             set_current_pet,
             set_pet_scale,
             set_behavior_state,
+            set_input_tracking_enabled,
             set_launch_on_boot,
             save_window_position,
             open_settings,
@@ -96,6 +111,7 @@ fn main() {
             hide_pet,
             quit_app
         ])
+        .manage(input::InputMonitor::new(true))
         .setup(|app| {
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_autostart::init(
@@ -105,7 +121,9 @@ fn main() {
 
             let config = config::load_config(app.handle());
             window::configure_main_window(app.handle(), &config);
-            input::spawn_input_monitor(app.handle().clone());
+            let monitor = app.state::<input::InputMonitor>();
+            monitor.set_enabled(config.behavior.input_tracking_enabled);
+            monitor.spawn(app.handle().clone());
             tray::create_tray(app)?;
             Ok(())
         })
