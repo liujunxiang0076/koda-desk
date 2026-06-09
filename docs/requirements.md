@@ -392,7 +392,8 @@ MVP 可先使用默认配置。第二阶段建议支持：
   },
   "behavior": {
     "mode": "auto",
-    "state": "idle"
+    "state": "idle",
+    "inputTrackingEnabled": true
   },
   "startup": {
     "launchOnBoot": false
@@ -405,6 +406,7 @@ MVP 可先使用默认配置。第二阶段建议支持：
 - 配置文件不存在时使用默认值。
 - 配置损坏时回退默认值，并记录错误。
 - 位置记忆、缩放、宠物切换等功能必须通过配置持久化。
+- 键鼠联动必须可通过配置关闭。
 
 ## 9. 性能目标
 
