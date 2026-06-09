@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
+mod input;
 mod pet_registry;
 mod tray;
 mod window;
@@ -104,6 +105,7 @@ fn main() {
 
             let config = config::load_config(app.handle());
             window::configure_main_window(app.handle(), &config);
+            input::spawn_input_monitor(app.handle().clone());
             tray::create_tray(app)?;
             Ok(())
         })

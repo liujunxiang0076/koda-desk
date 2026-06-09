@@ -4,20 +4,65 @@ export interface PetManifest {
   description: string;
   version: string;
   spritesheet: string;
+  stage?: PetStage;
+  sprite?: PetSpritePlacement;
   frame: {
     width: number;
     height: number;
     columns: number;
     rows: number;
   };
-  animations: Record<
-    string,
-    {
-      frames: number[];
-      fps: number;
-      loop: boolean;
-    }
-  >;
+  animations: Record<string, PetAnimation>;
+  workstation?: WorkstationManifest;
+}
+
+export interface PetAnimation {
+  frames: number[];
+  fps: number;
+  loop: boolean;
+}
+
+export interface PetStage {
+  width: number;
+  height: number;
+}
+
+export interface PetSpritePlacement {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface WorkstationBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface WorkstationKey {
+  id: string;
+  label: string;
+  x: number;
+  width: number;
+  aliases?: string[];
+}
+
+export interface WorkstationKeyRow {
+  y: number;
+  height: number;
+  keys: WorkstationKey[];
+}
+
+export interface WorkstationKeyboard extends WorkstationBox {
+  rows: WorkstationKeyRow[];
+}
+
+export interface WorkstationManifest {
+  monitor?: WorkstationBox;
+  keyboard?: WorkstationKeyboard;
+  mouse?: WorkstationBox;
 }
 
 const fullStateAnimations = {
@@ -29,6 +74,16 @@ const fullStateAnimations = {
   working: {
     frames: [8, 9, 10, 11, 12, 13, 14, 15],
     fps: 12,
+    loop: true,
+  },
+  typing: {
+    frames: [8, 9, 10, 11, 12, 13, 14, 15],
+    fps: 12,
+    loop: true,
+  },
+  mousing: {
+    frames: [8, 9, 10, 11, 12, 13, 14, 15],
+    fps: 10,
     loop: true,
   },
   waiting: {
@@ -141,6 +196,10 @@ function assertPetManifest(value: unknown): asserts value is PetManifest {
       }
     }
   }
+
+  assertOptionalStage(value.stage);
+  assertOptionalSprite(value.sprite);
+  assertOptionalWorkstation(value.workstation);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,6 +208,97 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isPositiveInteger(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) > 0;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function assertOptionalStage(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value) || !isPositiveInteger(value.width) || !isPositiveInteger(value.height)) {
+    throw new Error("pet stage is invalid");
+  }
+}
+
+function assertOptionalSprite(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (
+    !isRecord(value) ||
+    !isFiniteNumber(value.x) ||
+    !isFiniteNumber(value.y) ||
+    !isPositiveInteger(value.width) ||
+    !isPositiveInteger(value.height)
+  ) {
+    throw new Error("pet sprite placement is invalid");
+  }
+}
+
+function assertOptionalWorkstation(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    throw new Error("pet workstation is invalid");
+  }
+
+  assertOptionalBox(value.monitor, "monitor");
+  assertOptionalKeyboard(value.keyboard);
+  assertOptionalBox(value.mouse, "mouse");
+}
+
+function assertOptionalKeyboard(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  assertOptionalBox(value, "keyboard");
+
+  if (!isRecord(value) || !Array.isArray(value.rows) || value.rows.length === 0) {
+    throw new Error("pet workstation keyboard rows are invalid");
+  }
+
+  for (const row of value.rows) {
+    if (!isRecord(row) || !isFiniteNumber(row.y) || !isPositiveInteger(row.height) || !Array.isArray(row.keys)) {
+      throw new Error("pet workstation keyboard row is invalid");
+    }
+
+    for (const key of row.keys) {
+      if (
+        !isRecord(key) ||
+        typeof key.id !== "string" ||
+        typeof key.label !== "string" ||
+        !isFiniteNumber(key.x) ||
+        !isPositiveInteger(key.width) ||
+        (key.aliases !== undefined && (!Array.isArray(key.aliases) || !key.aliases.every((alias) => typeof alias === "string")))
+      ) {
+        throw new Error("pet workstation keyboard key is invalid");
+      }
+    }
+  }
+}
+
+function assertOptionalBox(value: unknown, name: string): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (
+    !isRecord(value) ||
+    !isFiniteNumber(value.x) ||
+    !isFiniteNumber(value.y) ||
+    !isPositiveInteger(value.width) ||
+    !isPositiveInteger(value.height)
+  ) {
+    throw new Error(`pet workstation ${name} box is invalid`);
+  }
 }
 
 function derivePetName(url: string): string {

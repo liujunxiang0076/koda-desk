@@ -31,10 +31,20 @@ interface AppConfig {
   };
 }
 
+interface InputActivityPayload {
+  kind: "keyboard" | "mouse";
+  code?: string;
+  label?: string;
+}
+
 const supportedScales = new Set<PetScale>(["small", "medium", "large"]);
 const clickReactionDurationMs = 900;
 const dragClickSuppressDistance = 4;
 const contextMenuViewportPadding = 6;
+const automaticStateRefreshMs = 500;
+const typingActivityHoldMs = 1_200;
+const mouseActivityHoldMs = 900;
+const workingActivityHoldMs = 5_000;
 const settingsWindowSize = {
   width: 340,
   height: 470,
@@ -62,6 +72,9 @@ const initialManualState = toPetState(config.behavior.state);
 let petVisible = true;
 let lastDragEndedAt = 0;
 let lastDragMoved = false;
+let lastInputActivityAt = Number.NEGATIVE_INFINITY;
+let lastKeyboardActivityAt = Number.NEGATIVE_INFINITY;
+let lastMouseActivityAt = Number.NEGATIVE_INFINITY;
 let petPositionBeforeSettings: { x: number; y: number } | null = null;
 
 const initialState = initialMode === "auto" ? inferAutomaticState() : initialManualState;
@@ -117,6 +130,8 @@ subscribeTauriEvent("settings:open", () => {
     console.error("[koda-desk] failed to open settings from event", error);
   });
 });
+
+subscribeTauriEvent<InputActivityPayload>("input:activity", handleInputActivity);
 
 petCanvas.addEventListener("mousedown", async (event) => {
   if (event.button !== 0 || !settingsPanel.hidden) {
@@ -243,8 +258,10 @@ settingsAutostart.addEventListener("change", () => {
 });
 
 window.setInterval(() => {
-  stateController.refreshAutomaticState();
-}, 60_000);
+  if (stateController.snapshot().mode === "auto") {
+    stateController.refreshAutomaticState();
+  }
+}, automaticStateRefreshMs);
 
 function hydrateSettings(
   snapshot: PetStateSnapshot,
@@ -516,13 +533,46 @@ function setPetVisibility(visible: boolean): void {
   console.info("[koda-desk] animation resumed");
 }
 
+function handleInputActivity(activity: InputActivityPayload): void {
+  const snapshot = stateController.snapshot();
+  if (snapshot.mode !== "auto" || !petVisible || !settingsPanel.hidden) {
+    return;
+  }
+
+  const now = performance.now();
+  lastInputActivityAt = now;
+
+  if (activity.kind === "keyboard") {
+    lastKeyboardActivityAt = now;
+  }
+
+  if (activity.kind === "mouse") {
+    lastMouseActivityAt = now;
+  }
+
+  pet.setInputActivity(activity);
+  stateController.refreshAutomaticState();
+}
+
 function inferAutomaticState(): PetState {
   if (!petVisible || !settingsPanel.hidden) {
     return "waiting";
   }
 
-  const hour = new Date().getHours();
-  return hour >= 9 && hour < 19 ? "working" : "idle";
+  const now = performance.now();
+  if (now - lastKeyboardActivityAt <= typingActivityHoldMs) {
+    return "typing";
+  }
+
+  if (now - lastMouseActivityAt <= mouseActivityHoldMs) {
+    return "mousing";
+  }
+
+  if (now - lastInputActivityAt <= workingActivityHoldMs) {
+    return "working";
+  }
+
+  return "idle";
 }
 
 function showContextMenu(x: number, y: number): void {

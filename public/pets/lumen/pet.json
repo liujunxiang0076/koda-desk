@@ -4,6 +4,16 @@
   "description": "A thoughtful Codex companion pet inspired by careful coding, quiet focus, and a warm workstation glow.",
   "version": "1.0.0",
   "spritesheet": "spritesheet.webp",
+  "stage": {
+    "width": 286,
+    "height": 246
+  },
+  "sprite": {
+    "x": 0,
+    "y": 38,
+    "width": 192,
+    "height": 208
+  },
   "frame": {
     "width": 192,
     "height": 208,
@@ -19,6 +29,16 @@
     "working": {
       "frames": [56, 57, 58, 59, 60, 61, 60, 59, 58, 57],
       "fps": 8,
+      "loop": true
+    },
+    "typing": {
+      "frames": [56, 57, 58, 59, 60, 61, 60, 59, 58, 57],
+      "fps": 10,
+      "loop": true
+    },
+    "mousing": {
+      "frames": [56, 57, 58, 59, 60, 61, 60, 59, 58, 57],
+      "fps": 7,
       "loop": true
     },
     "waiting": {
@@ -40,6 +60,104 @@
       "frames": [24, 25, 26, 27],
       "fps": 8,
       "loop": true
+    }
+  },
+  "workstation": {
+    "monitor": {
+      "x": 184,
+      "y": 48,
+      "width": 76,
+      "height": 58
+    },
+    "keyboard": {
+      "x": 104,
+      "y": 176,
+      "width": 154,
+      "height": 64,
+      "rows": [
+        {
+          "y": 5,
+          "height": 8,
+          "keys": [
+            { "id": "Digit1", "label": "1", "x": 7, "width": 10, "aliases": ["1"] },
+            { "id": "Digit2", "label": "2", "x": 20, "width": 10, "aliases": ["2"] },
+            { "id": "Digit3", "label": "3", "x": 33, "width": 10, "aliases": ["3"] },
+            { "id": "Digit4", "label": "4", "x": 46, "width": 10, "aliases": ["4"] },
+            { "id": "Digit5", "label": "5", "x": 59, "width": 10, "aliases": ["5"] },
+            { "id": "Digit6", "label": "6", "x": 72, "width": 10, "aliases": ["6"] },
+            { "id": "Digit7", "label": "7", "x": 85, "width": 10, "aliases": ["7"] },
+            { "id": "Digit8", "label": "8", "x": 98, "width": 10, "aliases": ["8"] },
+            { "id": "Digit9", "label": "9", "x": 111, "width": 10, "aliases": ["9"] },
+            { "id": "Digit0", "label": "0", "x": 124, "width": 10, "aliases": ["0"] }
+          ]
+        },
+        {
+          "y": 16,
+          "height": 8,
+          "keys": [
+            { "id": "KeyQ", "label": "Q", "x": 13, "width": 10, "aliases": ["Q"] },
+            { "id": "KeyW", "label": "W", "x": 26, "width": 10, "aliases": ["W"] },
+            { "id": "KeyE", "label": "E", "x": 39, "width": 10, "aliases": ["E"] },
+            { "id": "KeyR", "label": "R", "x": 52, "width": 10, "aliases": ["R"] },
+            { "id": "KeyT", "label": "T", "x": 65, "width": 10, "aliases": ["T"] },
+            { "id": "KeyY", "label": "Y", "x": 78, "width": 10, "aliases": ["Y"] },
+            { "id": "KeyU", "label": "U", "x": 91, "width": 10, "aliases": ["U"] },
+            { "id": "KeyI", "label": "I", "x": 104, "width": 10, "aliases": ["I"] },
+            { "id": "KeyO", "label": "O", "x": 117, "width": 10, "aliases": ["O"] },
+            { "id": "KeyP", "label": "P", "x": 130, "width": 10, "aliases": ["P"] }
+          ]
+        },
+        {
+          "y": 27,
+          "height": 8,
+          "keys": [
+            { "id": "KeyA", "label": "A", "x": 18, "width": 10, "aliases": ["A"] },
+            { "id": "KeyS", "label": "S", "x": 31, "width": 10, "aliases": ["S"] },
+            { "id": "KeyD", "label": "D", "x": 44, "width": 10, "aliases": ["D"] },
+            { "id": "KeyF", "label": "F", "x": 57, "width": 10, "aliases": ["F"] },
+            { "id": "KeyG", "label": "G", "x": 70, "width": 10, "aliases": ["G"] },
+            { "id": "KeyH", "label": "H", "x": 83, "width": 10, "aliases": ["H"] },
+            { "id": "KeyJ", "label": "J", "x": 96, "width": 10, "aliases": ["J"] },
+            { "id": "KeyK", "label": "K", "x": 109, "width": 10, "aliases": ["K"] },
+            { "id": "KeyL", "label": "L", "x": 122, "width": 10, "aliases": ["L"] },
+            { "id": "Enter", "label": "Ent", "x": 135, "width": 12, "aliases": ["Return"] }
+          ]
+        },
+        {
+          "y": 38,
+          "height": 8,
+          "keys": [
+            { "id": "Shift", "label": "Shift", "x": 7, "width": 20 },
+            { "id": "KeyZ", "label": "Z", "x": 30, "width": 10, "aliases": ["Z"] },
+            { "id": "KeyX", "label": "X", "x": 43, "width": 10, "aliases": ["X"] },
+            { "id": "KeyC", "label": "C", "x": 56, "width": 10, "aliases": ["C"] },
+            { "id": "KeyV", "label": "V", "x": 69, "width": 10, "aliases": ["V"] },
+            { "id": "KeyB", "label": "B", "x": 82, "width": 10, "aliases": ["B"] },
+            { "id": "KeyN", "label": "N", "x": 95, "width": 10, "aliases": ["N"] },
+            { "id": "KeyM", "label": "M", "x": 108, "width": 10, "aliases": ["M"] },
+            { "id": "Backspace", "label": "Bk", "x": 121, "width": 26, "aliases": ["Back"] }
+          ]
+        },
+        {
+          "y": 49,
+          "height": 9,
+          "keys": [
+            { "id": "Control", "label": "Ctrl", "x": 7, "width": 18, "aliases": ["Ctrl"] },
+            { "id": "Alt", "label": "Alt", "x": 28, "width": 16 },
+            { "id": "Space", "label": "Space", "x": 47, "width": 46 },
+            { "id": "ArrowLeft", "label": "Lt", "x": 97, "width": 11, "aliases": ["Left"] },
+            { "id": "ArrowUp", "label": "Up", "x": 110, "width": 11, "aliases": ["Up"] },
+            { "id": "ArrowDown", "label": "Dn", "x": 123, "width": 11, "aliases": ["Down"] },
+            { "id": "ArrowRight", "label": "Rt", "x": 136, "width": 11, "aliases": ["Right"] }
+          ]
+        }
+      ]
+    },
+    "mouse": {
+      "x": 264,
+      "y": 190,
+      "width": 20,
+      "height": 30
     }
   }
 }

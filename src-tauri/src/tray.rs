@@ -38,6 +38,8 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     let state_auto = MenuItem::with_id(app, "state:auto", "自动", true, None::<&str>)?;
     let state_idle = MenuItem::with_id(app, "state:idle", "摸鱼", true, None::<&str>)?;
     let state_working = MenuItem::with_id(app, "state:working", "工作", true, None::<&str>)?;
+    let state_typing = MenuItem::with_id(app, "state:typing", "敲键盘", true, None::<&str>)?;
+    let state_mousing = MenuItem::with_id(app, "state:mousing", "滑鼠标", true, None::<&str>)?;
     let state_waiting = MenuItem::with_id(app, "state:waiting", "等待", true, None::<&str>)?;
     let state_failed = MenuItem::with_id(app, "state:failed", "故障", true, None::<&str>)?;
     let state_review = MenuItem::with_id(app, "state:review", "检查", true, None::<&str>)?;
@@ -49,6 +51,8 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             &state_auto,
             &state_idle,
             &state_working,
+            &state_typing,
+            &state_mousing,
             &state_waiting,
             &state_failed,
             &state_review,
@@ -80,6 +84,8 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             "state:auto" => emit_selection(app, "pet:state", "auto"),
             "state:idle" => emit_selection(app, "pet:state", "idle"),
             "state:working" => emit_selection(app, "pet:state", "working"),
+            "state:typing" => emit_selection(app, "pet:state", "typing"),
+            "state:mousing" => emit_selection(app, "pet:state", "mousing"),
             "state:waiting" => emit_selection(app, "pet:state", "waiting"),
             "state:failed" => emit_selection(app, "pet:state", "failed"),
             "state:review" => emit_selection(app, "pet:state", "review"),

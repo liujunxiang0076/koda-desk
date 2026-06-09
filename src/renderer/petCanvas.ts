@@ -1,4 +1,4 @@
-import { createAnimationPlayer, type AnimationPlayer } from "./animation";
+import { createAnimationPlayer, type AnimationPlayer, type PetInputActivity } from "./animation";
 import { loadPetManifest, type PetManifest } from "./petManifest";
 
 export interface PetCanvasController {
@@ -7,6 +7,7 @@ export interface PetCanvasController {
   switchPet(manifestUrl: string): Promise<void>;
   setScale(scale: PetScale): PetDisplaySize;
   setState(state: string): void;
+  setInputActivity(activity: PetInputActivity): void;
   getDisplaySize(): PetDisplaySize;
 }
 
@@ -96,6 +97,10 @@ export function createPetCanvas(
     player?.setState(state);
   }
 
+  function setInputActivity(activity: PetInputActivity): void {
+    player?.setInputActivity(activity);
+  }
+
   function getDisplaySize(): PetDisplaySize {
     return getScaledSize(currentManifest, canvas, currentScale);
   }
@@ -125,13 +130,13 @@ export function createPetCanvas(
     animationFrame = requestAnimationFrame(tick);
   }
 
-  return { start, stop, switchPet, setScale, setState, getDisplaySize };
+  return { start, stop, switchPet, setScale, setState, setInputActivity, getDisplaySize };
 }
 
 function resizeCanvas(canvas: HTMLCanvasElement, manifest: PetManifest, scale: PetScale): void {
   const displaySize = getScaledSize(manifest, canvas, scale);
-  canvas.width = manifest.frame.width;
-  canvas.height = manifest.frame.height;
+  canvas.width = manifest.stage?.width ?? manifest.frame.width;
+  canvas.height = manifest.stage?.height ?? manifest.frame.height;
   canvas.style.width = `${displaySize.width}px`;
   canvas.style.height = `${displaySize.height}px`;
 }
@@ -142,8 +147,8 @@ function getScaledSize(
   scale: PetScale,
 ): PetDisplaySize {
   const scaleFactor = scaleFactors[scale];
-  const width = manifest?.frame.width ?? canvas.width;
-  const height = manifest?.frame.height ?? canvas.height;
+  const width = manifest?.stage?.width ?? manifest?.frame.width ?? canvas.width;
+  const height = manifest?.stage?.height ?? manifest?.frame.height ?? canvas.height;
 
   return {
     width: Math.round(width * scaleFactor),

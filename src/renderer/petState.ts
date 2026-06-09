@@ -1,4 +1,13 @@
-export const petStates = ["idle", "working", "waiting", "failed", "review", "dragging"] as const;
+export const petStates = [
+  "idle",
+  "working",
+  "typing",
+  "mousing",
+  "waiting",
+  "failed",
+  "review",
+  "dragging",
+] as const;
 
 export type PetState = (typeof petStates)[number];
 export type BehaviorMode = "auto" | "manual";
