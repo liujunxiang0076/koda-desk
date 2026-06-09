@@ -10,4 +10,5 @@
 | `requirements.md` | 产品需求和项目背景 |
 | `mvp-validation.md` | MVP 验证相关记录 |
 | `phase-2-plan.md` | 第二阶段后续动作任务计划 |
+| `input-interaction-plan.md` | 键盘 / 鼠标输入联动、工位资源格式和后续动画计划 |
 | `git-conventions.md` | Git 提交粒度、提交信息和推送规范 |
