@@ -5,7 +5,7 @@ use crate::config::AppConfig;
 const PET_WINDOW_WIDTH: f64 = 192.0;
 const PET_WINDOW_HEIGHT: f64 = 208.0;
 const SETTINGS_WINDOW_WIDTH: f64 = 340.0;
-const SETTINGS_WINDOW_HEIGHT: f64 = 470.0;
+const SETTINGS_WINDOW_HEIGHT: f64 = 510.0;
 
 pub fn configure_main_window(app: &AppHandle, config: &AppConfig) {
     if let Some(window) = app.get_webview_window("main") {

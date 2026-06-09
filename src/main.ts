@@ -25,6 +25,7 @@ interface AppConfig {
   behavior: {
     mode: string;
     state: string;
+    inputTrackingEnabled: boolean;
   };
   startup: {
     launchOnBoot: boolean;
@@ -45,9 +46,10 @@ const automaticStateRefreshMs = 500;
 const typingActivityHoldMs = 1_200;
 const mouseActivityHoldMs = 900;
 const workingActivityHoldMs = 5_000;
+const browserMouseActivityThrottleMs = 90;
 const settingsWindowSize = {
   width: 340,
-  height: 470,
+  height: 510,
 };
 const tauriRuntime = isTauri();
 const currentWindow = tauriRuntime ? getCurrentWindow() : null;
@@ -58,6 +60,7 @@ const settingsPet = queryRequired<HTMLSelectElement>("#settings-pet");
 const settingsScale = queryRequired<HTMLSelectElement>("#settings-scale");
 const settingsMode = queryRequired<HTMLSelectElement>("#settings-mode");
 const settingsState = queryRequired<HTMLSelectElement>("#settings-state");
+const settingsInputTracking = queryRequired<HTMLInputElement>("#settings-input-tracking");
 const settingsAutostart = queryRequired<HTMLInputElement>("#settings-autostart");
 const settingsCloseButton = queryRequired<HTMLButtonElement>("[data-action='close-settings']");
 
@@ -75,6 +78,7 @@ let lastDragMoved = false;
 let lastInputActivityAt = Number.NEGATIVE_INFINITY;
 let lastKeyboardActivityAt = Number.NEGATIVE_INFINITY;
 let lastMouseActivityAt = Number.NEGATIVE_INFINITY;
+let inputTrackingEnabled = config.behavior.inputTrackingEnabled;
 let petPositionBeforeSettings: { x: number; y: number } | null = null;
 
 const initialState = initialMode === "auto" ? inferAutomaticState() : initialManualState;
@@ -90,6 +94,7 @@ const stateController = createPetStateController({
 });
 
 hydrateSettings(stateController.snapshot(), initialPet.name, initialScale, petRegistry);
+settingsInputTracking.checked = inputTrackingEnabled;
 settingsAutostart.checked = config.startup.launchOnBoot;
 syncAutostartSetting(config.startup.launchOnBoot).catch((error) => {
   console.error("[koda-desk] failed to sync autostart setting", error);
@@ -132,6 +137,7 @@ subscribeTauriEvent("settings:open", () => {
 });
 
 subscribeTauriEvent<InputActivityPayload>("input:activity", handleInputActivity);
+installBrowserInputDebugEvents();
 
 petCanvas.addEventListener("mousedown", async (event) => {
   if (event.button !== 0 || !settingsPanel.hidden) {
@@ -251,6 +257,12 @@ settingsState.addEventListener("change", () => {
   selectState(settingsState.value, settingsMode.value);
 });
 
+settingsInputTracking.addEventListener("change", () => {
+  setInputTrackingEnabled(settingsInputTracking.checked).catch((error) => {
+    console.error("[koda-desk] failed to update input tracking", error);
+  });
+});
+
 settingsAutostart.addEventListener("change", () => {
   setLaunchOnBoot(settingsAutostart.checked).catch((error) => {
     console.error("[koda-desk] failed to update launch on boot", error);
@@ -299,7 +311,7 @@ async function loadConfig(): Promise<AppConfig> {
 function defaultConfig(): AppConfig {
   return {
     pet: { current: "koda", scale: "medium" },
-    behavior: { mode: "auto", state: "idle" },
+    behavior: { mode: "auto", state: "idle", inputTrackingEnabled: true },
     startup: { launchOnBoot: false },
   };
 }
@@ -361,6 +373,19 @@ function persistBehavior(snapshot: PetStateSnapshot): void {
   invokeTauri("set_behavior_state", { mode: snapshot.mode, state }).catch((error) => {
     console.error(`[koda-desk] failed to save pet behavior ${snapshot.mode}/${state}`, error);
   });
+}
+
+async function setInputTrackingEnabled(enabled: boolean): Promise<void> {
+  inputTrackingEnabled = enabled;
+  settingsInputTracking.checked = enabled;
+
+  try {
+    await invokeTauri<AppConfig>("set_input_tracking_enabled", { enabled });
+  } catch (error) {
+    inputTrackingEnabled = !enabled;
+    settingsInputTracking.checked = inputTrackingEnabled;
+    throw error;
+  }
 }
 
 async function syncAutostartSetting(fallback: boolean): Promise<void> {
@@ -534,8 +559,7 @@ function setPetVisibility(visible: boolean): void {
 }
 
 function handleInputActivity(activity: InputActivityPayload): void {
-  const snapshot = stateController.snapshot();
-  if (snapshot.mode !== "auto" || !petVisible || !settingsPanel.hidden) {
+  if (!inputTrackingEnabled || !petVisible || !settingsPanel.hidden) {
     return;
   }
 
@@ -551,7 +575,38 @@ function handleInputActivity(activity: InputActivityPayload): void {
   }
 
   pet.setInputActivity(activity);
-  stateController.refreshAutomaticState();
+
+  if (stateController.snapshot().mode === "auto") {
+    stateController.refreshAutomaticState();
+  }
+}
+
+function installBrowserInputDebugEvents(): void {
+  if (tauriRuntime) {
+    return;
+  }
+
+  let lastMouseActivityAt = 0;
+
+  document.addEventListener("keydown", (event) => {
+    handleInputActivity({
+      kind: "keyboard",
+      code: event.code,
+      label: event.key,
+    });
+  });
+
+  document.addEventListener("mousemove", () => {
+    const now = performance.now();
+    if (now - lastMouseActivityAt < browserMouseActivityThrottleMs) {
+      return;
+    }
+
+    lastMouseActivityAt = now;
+    handleInputActivity({
+      kind: "mouse",
+    });
+  });
 }
 
 function inferAutomaticState(): PetState {
