@@ -913,3 +913,56 @@ MVP 可以进入第二阶段的最低标准：
 - 当前代码通过了构建、Rust 检查、主要宠物资源请求和基础 Canvas 显示验证。
 - 本次尚不能判定 MVP 已满足进入第二阶段的最低标准，因为托盘、拖拽、隐藏后动画暂停、退出无残留、异常资源容错仍需要真实 Tauri 桌面交互和异常场景复测。
 - 建议下一轮优先补齐 `default` 资源问题，并增加可观测日志，例如 `animation started`、`animation paused`、`animation resumed`，再执行隐藏 / 显示与容错专项验证。
+
+### 12.2 2026-06-09 未完成项逐项修复与自动验证
+
+基础信息：
+
+- 测试时间：2026-06-09。
+- 测试人：Codex。
+- 范围：修复已知 P2 问题，补齐第二阶段核心实现，执行自动构建和 Rust 检查。
+
+已完成修复：
+
+| 项目 | 结果 | 证据 / 备注 |
+| --- | --- | --- |
+| MVP-VAL-001 default 资源缺失 | 已修复 | `public/pets/default/pet.json` 改为复用 `../koda/spritesheet.webp`，本地路径解析到 `public/pets/koda/spritesheet.webp`。 |
+| MVP-VAL-002 浏览器调试 Tauri 事件报错 | 已修复 | 前端通过 `isTauri()` 守卫 `listen`、`invoke`、`getCurrentWindow` 相关调用；普通浏览器环境不会订阅 Tauri 事件。 |
+| 宠物注册表 | 已完成一版 | 初始宠物、设置页、宠物切换使用 `public/pets/pets.json`；读取失败保留 `koda` 兜底。 |
+| 托盘宠物菜单 | 已完成一版 | Rust 托盘宠物菜单从同一份宠物注册表生成，并支持切换后显示宠物窗口。 |
+| 位置记忆 | 已完成一版 | 拖拽结束后保存窗口位置，启动恢复时按可用显示器边界钳制，避免恢复到屏幕外。 |
+| 状态机 | 已完成一版 | 新增统一前端状态控制器，按临时状态、手动状态、自动状态处理优先级。 |
+| 多状态动画 | 已完成一版 | `koda`、`lumen`、`default` manifest 补齐 `idle`、`working`、`waiting`、`failed`、`review`、`dragging`。 |
+| 点击反应 | 已完成一版 | 点击短暂进入 `review`，拖拽进入 `dragging`，拖拽位移超过阈值时抑制后续 click 反应。 |
+| 隐藏动画暂停 | 已完成一版 | Rust `show` / `hide` / `toggle` 会向前端发送 `pet:visibility`，前端据此暂停或恢复动画。 |
+| 设置页行为 | 已完成一版 | 打开设置页时暂停动画，关闭后由前端按当前宠物和缩放恢复窗口尺寸；宠物、缩放、模式、状态继续保存配置。 |
+| 托盘设置入口 | 已修复 | 托盘点设置会先显示宠物窗口，再向前端发送 `settings:open`，避免隐藏状态下设置页不可见。 |
+| 开机自启 | 已完成一版 | 接入 `@tauri-apps/plugin-autostart` / `tauri-plugin-autostart`，设置页新增开机自启勾选项，并将系统实际注册状态同步回配置。 |
+
+自动验证：
+
+| 项目 | 结果 | 证据 / 备注 |
+| --- | --- | --- |
+| Rust 格式化 | 通过 | 已执行 `cargo fmt`。 |
+| 前端生产构建 | 通过 | `npm run build` 成功，Vite 输出 `dist/index.html`、CSS 和 JS bundle。 |
+| Tauri / Rust 编译检查 | 通过 | `cargo check` 成功，`dev` profile finished。 |
+| default spritesheet 路径 | 通过 | `../koda/spritesheet.webp` 可解析到现有图片文件。 |
+| 开机自启插件编译 | 通过 | `cargo check` 成功编译 `tauri-plugin-autostart`，capability 已允许 `enable` / `disable` / `isEnabled`。 |
+
+仍需真实 Tauri 桌面复测：
+
+- 透明区域在真实桌面上是否无黑底、白底或矩形背景。
+- 宠物是否真实置顶且不影响其他应用输入。
+- 拖拽移动、拖拽后位置保存、关闭重启后位置恢复。
+- 右键菜单隐藏 / 显示 / 设置 / 退出。
+- 托盘显示 / 隐藏 / 切换宠物 / 切换缩放 / 切换状态 / 退出。
+- 托盘打开设置、设置页关闭后的窗口尺寸恢复。
+- 开机自启在安装后真实系统登录 / 重启路径中是否生效。
+- 隐藏状态 3 分钟 CPU / 内存趋势。
+- 多次显示 / 隐藏 10 次后的动画循环和资源占用。
+- `pet.json` 缺失、格式错误、字段缺失、spritesheet 缺失 / 损坏、帧索引越界、fps 异常等容错场景。
+
+阶段结论：
+
+- 本轮已清理已知 P2 的代码原因，自动构建、Rust 检查和开机自启插件编译通过。
+- 由于本轮未执行真实 Tauri 桌面交互、系统登录自启和异常资源专项测试，MVP 是否完全满足进入下一阶段的最低标准仍需桌面复测确认。
