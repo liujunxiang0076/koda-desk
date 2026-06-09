@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize, PhysicalPosition } from "@tauri-apps/api/window";
 import {
   disable as disableAutostart,
   enable as enableAutostart,
@@ -34,6 +34,11 @@ interface AppConfig {
 const supportedScales = new Set<PetScale>(["small", "medium", "large"]);
 const clickReactionDurationMs = 900;
 const dragClickSuppressDistance = 4;
+const contextMenuViewportPadding = 6;
+const settingsWindowSize = {
+  width: 340,
+  height: 470,
+};
 const tauriRuntime = isTauri();
 const currentWindow = tauriRuntime ? getCurrentWindow() : null;
 const canvas = queryRequired<HTMLCanvasElement>("#pet-canvas");
@@ -44,6 +49,7 @@ const settingsScale = queryRequired<HTMLSelectElement>("#settings-scale");
 const settingsMode = queryRequired<HTMLSelectElement>("#settings-mode");
 const settingsState = queryRequired<HTMLSelectElement>("#settings-state");
 const settingsAutostart = queryRequired<HTMLInputElement>("#settings-autostart");
+const settingsCloseButton = queryRequired<HTMLButtonElement>("[data-action='close-settings']");
 
 const petCanvas = canvas;
 const contextMenu = menu;
@@ -53,9 +59,10 @@ const initialPet = getInitialPet(config, petRegistry);
 const initialScale = getInitialPetScale(config);
 const initialMode = toBehaviorMode(config.behavior.mode);
 const initialManualState = toPetState(config.behavior.state);
-let petVisible = !document.hidden;
+let petVisible = true;
 let lastDragEndedAt = 0;
 let lastDragMoved = false;
+let petPositionBeforeSettings: { x: number; y: number } | null = null;
 
 const initialState = initialMode === "auto" ? inferAutomaticState() : initialManualState;
 const pet = createPetCanvas(petCanvas, initialPet.manifest, initialScale, initialState);
@@ -106,7 +113,9 @@ subscribeTauriEvent<boolean>("pet:visibility", (visible) => {
 });
 
 subscribeTauriEvent("settings:open", () => {
-  openSettings();
+  openSettings().catch((error) => {
+    console.error("[koda-desk] failed to open settings from event", error);
+  });
 });
 
 petCanvas.addEventListener("mousedown", async (event) => {
@@ -174,7 +183,9 @@ contextMenu.addEventListener("click", async (event) => {
   hideContextMenu();
 
   if (action === "settings") {
-    openSettings();
+    openSettings().catch((error) => {
+      console.error("[koda-desk] failed to open settings from context menu", error);
+    });
     return;
   }
 
@@ -198,8 +209,13 @@ contextMenu.addEventListener("click", async (event) => {
 settingsPanel.addEventListener("click", (event) => {
   const target = event.target as HTMLElement;
   if (target.dataset.action === "close-settings") {
-    closeSettings();
+    requestCloseSettings();
   }
+});
+
+settingsCloseButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  requestCloseSettings();
 });
 
 settingsPet.addEventListener("change", () => {
@@ -224,10 +240,6 @@ settingsAutostart.addEventListener("change", () => {
   setLaunchOnBoot(settingsAutostart.checked).catch((error) => {
     console.error("[koda-desk] failed to update launch on boot", error);
   });
-});
-
-document.addEventListener("visibilitychange", () => {
-  setPetVisibility(!document.hidden);
 });
 
 window.setInterval(() => {
@@ -388,16 +400,29 @@ function persistLaunchOnBoot(enabled: boolean): Promise<AppConfig | undefined> {
   return invokeTauri<AppConfig>("set_launch_on_boot", { enabled });
 }
 
-function openSettings(): void {
+async function openSettings(): Promise<void> {
+  if (!settingsPanel.hidden) {
+    return;
+  }
+
+  await rememberPetWindowPosition();
   pet.stop();
   document.body.dataset.view = "settings";
   settingsPanel.hidden = false;
-  invokeTauri("open_settings").catch((error) => {
+
+  try {
+    await invokeTauri("open_settings");
+    await keepSettingsWindowOnScreen();
+  } catch (error) {
     console.error("[koda-desk] failed to open settings", error);
-  });
+  }
 }
 
-function closeSettings(): void {
+async function closeSettings(): Promise<void> {
+  if (settingsPanel.hidden) {
+    return;
+  }
+
   settingsPanel.hidden = true;
   delete document.body.dataset.view;
 
@@ -407,8 +432,17 @@ function closeSettings(): void {
     });
   }
 
-  fitPetWindow().catch((error) => {
-    console.error("[koda-desk] failed to restore pet window size", error);
+  try {
+    await fitPetWindow();
+    await restorePetWindowPosition();
+  } catch (error) {
+    console.error("[koda-desk] failed to restore pet window after settings", error);
+  }
+}
+
+function requestCloseSettings(): void {
+  closeSettings().catch((error) => {
+    console.error("[koda-desk] failed to close settings", error);
   });
 }
 
@@ -418,6 +452,49 @@ async function fitPetWindow(displaySize: PetDisplaySize = pet.getDisplaySize()):
   }
 
   await currentWindow.setSize(new LogicalSize(displaySize.width, displaySize.height));
+}
+
+async function rememberPetWindowPosition(): Promise<void> {
+  if (!currentWindow) {
+    return;
+  }
+
+  try {
+    const position = await currentWindow.outerPosition();
+    petPositionBeforeSettings = { x: position.x, y: position.y };
+  } catch (error) {
+    petPositionBeforeSettings = null;
+    console.error("[koda-desk] failed to remember pet position before settings", error);
+  }
+}
+
+async function restorePetWindowPosition(): Promise<void> {
+  if (!currentWindow || !petPositionBeforeSettings) {
+    return;
+  }
+
+  const position = petPositionBeforeSettings;
+  petPositionBeforeSettings = null;
+  await currentWindow.setPosition(new PhysicalPosition(position.x, position.y));
+}
+
+async function keepSettingsWindowOnScreen(): Promise<void> {
+  if (!currentWindow) {
+    return;
+  }
+
+  const position = await currentWindow.outerPosition();
+  const screen = window.screen as Screen & { availLeft?: number; availTop?: number };
+  const screenLeft = screen.availLeft ?? 0;
+  const screenTop = screen.availTop ?? 0;
+  const maxLeft = Math.max(screenLeft, screenLeft + screen.availWidth - settingsWindowSize.width);
+  const maxTop = Math.max(screenTop, screenTop + screen.availHeight - settingsWindowSize.height);
+  const left = clamp(position.x, screenLeft, maxLeft);
+  const top = clamp(position.y, screenTop, maxTop);
+
+  if (left !== position.x || top !== position.y) {
+    await currentWindow.setPosition(new PhysicalPosition(Math.round(left), Math.round(top)));
+  }
 }
 
 function setPetVisibility(visible: boolean): void {
@@ -440,7 +517,7 @@ function setPetVisibility(visible: boolean): void {
 }
 
 function inferAutomaticState(): PetState {
-  if (!petVisible || document.visibilityState === "hidden") {
+  if (!petVisible || !settingsPanel.hidden) {
     return "waiting";
   }
 
@@ -450,12 +527,25 @@ function inferAutomaticState(): PetState {
 
 function showContextMenu(x: number, y: number): void {
   contextMenu.hidden = false;
-  contextMenu.style.left = `${x}px`;
-  contextMenu.style.top = `${y}px`;
+  contextMenu.style.left = "0px";
+  contextMenu.style.top = "0px";
+
+  const menuRect = contextMenu.getBoundingClientRect();
+  const maxLeft = Math.max(contextMenuViewportPadding, window.innerWidth - menuRect.width - contextMenuViewportPadding);
+  const maxTop = Math.max(contextMenuViewportPadding, window.innerHeight - menuRect.height - contextMenuViewportPadding);
+  const left = clamp(x, contextMenuViewportPadding, maxLeft);
+  const top = clamp(y, contextMenuViewportPadding, maxTop);
+
+  contextMenu.style.left = `${left}px`;
+  contextMenu.style.top = `${top}px`;
 }
 
 function hideContextMenu(): void {
   contextMenu.hidden = true;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function getInitialPet(config: AppConfig, registry: PetRegistry): PetRegistryEntry {

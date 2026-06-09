@@ -37,6 +37,7 @@ body[data-view="settings"] #pet-canvas {
 #context-menu {
   position: fixed;
   z-index: 10;
+  box-sizing: border-box;
   min-width: 116px;
   padding: 4px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -51,8 +52,10 @@ body[data-view="settings"] #pet-canvas {
 
 #context-menu button {
   display: block;
+  box-sizing: border-box;
   width: 100%;
   height: 28px;
+  padding: 0 10px;
   border: 0;
   border-radius: 4px;
   background: transparent;
