@@ -32,7 +32,8 @@ pub fn load_pet_registry(app: &App) -> Vec<PetRegistryEntry> {
 
 fn read_pet_registry(app: &App) -> Result<Vec<PetRegistryEntry>, String> {
     let content = read_pet_registry_content(app);
-    let pet_list = serde_json::from_str::<PetListFile>(&content).map_err(|error| error.to_string())?;
+    let pet_list =
+        serde_json::from_str::<PetListFile>(&content).map_err(|error| error.to_string())?;
     let pets = pet_list
         .pets
         .into_iter()

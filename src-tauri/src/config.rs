@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub pet: PetConfig,
     pub window: WindowConfig,
     pub behavior: BehaviorConfig,
+    #[serde(default)]
     pub startup: StartupConfig,
 }
 
@@ -31,7 +32,7 @@ pub struct BehaviorConfig {
     pub state: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartupConfig {
     pub launch_on_boot: bool,

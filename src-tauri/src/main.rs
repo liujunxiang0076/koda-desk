@@ -27,10 +27,21 @@ fn set_pet_scale(app: tauri::AppHandle, scale: String) -> Result<AppConfig, Stri
 }
 
 #[tauri::command]
-fn set_behavior_state(app: tauri::AppHandle, mode: String, state: String) -> Result<AppConfig, String> {
+fn set_behavior_state(
+    app: tauri::AppHandle,
+    mode: String,
+    state: String,
+) -> Result<AppConfig, String> {
     config::update_config(&app, |config| {
         config.behavior.mode = mode;
         config.behavior.state = state;
+    })
+}
+
+#[tauri::command]
+fn set_launch_on_boot(app: tauri::AppHandle, enabled: bool) -> Result<AppConfig, String> {
+    config::update_config(&app, |config| {
+        config.startup.launch_on_boot = enabled;
     })
 }
 
@@ -49,7 +60,8 @@ fn open_settings(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn close_settings(app: tauri::AppHandle) -> Result<(), String> {
-    window::resize_for_pet(&app)
+    let _ = app;
+    Ok(())
 }
 
 #[tauri::command]
@@ -75,6 +87,7 @@ fn main() {
             set_current_pet,
             set_pet_scale,
             set_behavior_state,
+            set_launch_on_boot,
             save_window_position,
             open_settings,
             close_settings,
@@ -83,6 +96,12 @@ fn main() {
             quit_app
         ])
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))?;
+
             let config = config::load_config(app.handle());
             window::configure_main_window(app.handle(), &config);
             tray::create_tray(app)?;

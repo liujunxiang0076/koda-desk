@@ -1,6 +1,6 @@
 # Default Pet Asset
 
-Place the MVP `spritesheet.webp` in this directory.
+This fallback manifest reuses `../koda/spritesheet.webp` so the `default` pet path can be tested without duplicating the spritesheet.
 
 Expected format:
 

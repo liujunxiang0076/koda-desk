@@ -146,3 +146,17 @@ body[data-view="settings"] #pet-canvas {
 #settings-panel select:disabled {
   opacity: 0.58;
 }
+
+.settings-toggle {
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.settings-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #2563eb;
+}

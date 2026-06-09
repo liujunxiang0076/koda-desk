@@ -66,6 +66,7 @@ export function createPetCanvas(
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
       animationFrame = 0;
+      console.info("[koda-desk] animation stopped");
     }
   }
 
@@ -116,6 +117,7 @@ export function createPetCanvas(
 
     player.reset();
     tick(0);
+    console.info("[koda-desk] animation started");
   }
 
   function tick(timestamp: number): void {

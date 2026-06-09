@@ -14,7 +14,7 @@ export function createAnimationPlayer(
 ): AnimationPlayer {
   let currentState = state;
   let animation = manifest.animations[currentState] ?? manifest.animations.idle;
-  let frameDuration = 1000 / clamp(animation.fps, 1, 24);
+  let frameDuration = 1000 / normalizeFps(animation.fps);
   let frameCursor = 0;
   let lastFrameAt = 0;
 
@@ -56,7 +56,7 @@ export function createAnimationPlayer(
 
       currentState = nextState;
       animation = nextAnimation;
-      frameDuration = 1000 / clamp(animation.fps, 1, 24);
+      frameDuration = 1000 / normalizeFps(animation.fps);
       frameCursor = 0;
       lastFrameAt = 0;
     },
@@ -70,6 +70,10 @@ function nextCursor(current: number, total: number, loop: boolean): number {
 
   const next = current + 1;
   return next >= total ? (loop ? 0 : total - 1) : next;
+}
+
+function normalizeFps(value: number): number {
+  return Number.isFinite(value) ? clamp(value, 1, 24) : 1;
 }
 
 function clamp(value: number, min: number, max: number): number {
