@@ -1,4 +1,9 @@
-import { createAnimationPlayer, type AnimationPlayer, type PetInputActivity } from "./animation";
+import {
+  createAnimationPlayer,
+  type AnimationPlayer,
+  type LoadedWorkstationAsset,
+  type PetInputActivity,
+} from "./animation";
 import { loadPetManifest, type PetManifest } from "./petManifest";
 
 export interface PetCanvasController {
@@ -112,12 +117,13 @@ export function createPetCanvas(
       currentManifest = manifest;
       resizeCanvas(canvas, manifest, currentScale);
       const image = await loadImage(resolveAssetUrl(currentManifestUrl, manifest.spritesheet));
+      const workstationAssets = await loadWorkstationAssets(currentManifestUrl, manifest);
 
       if (version !== loadVersion) {
         return;
       }
 
-      player = createAnimationPlayer(drawContext, image, manifest, currentState);
+      player = createAnimationPlayer(drawContext, image, manifest, currentState, workstationAssets);
     }
 
     player.reset();
@@ -163,6 +169,29 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error(`spritesheet load failed: ${url}`));
     image.src = url;
   });
+}
+
+async function loadWorkstationAssets(baseUrl: string, manifest: PetManifest): Promise<LoadedWorkstationAsset[]> {
+  const assets = manifest.workstation?.assets ?? [];
+  const loadedAssets = await Promise.all(
+    assets.map(async (asset) => {
+      try {
+        return {
+          image: await loadImage(resolveAssetUrl(baseUrl, asset.src)),
+          x: asset.x,
+          y: asset.y,
+          width: asset.width,
+          height: asset.height,
+          layer: asset.layer ?? "back",
+        } satisfies LoadedWorkstationAsset;
+      } catch (error) {
+        console.error(`[koda-desk] workstation asset load failed: ${asset.src}`, error);
+        return null;
+      }
+    }),
+  );
+
+  return loadedAssets.filter((asset): asset is LoadedWorkstationAsset => asset !== null);
 }
 
 function resolveAssetUrl(baseUrl: string, assetName: string): string {

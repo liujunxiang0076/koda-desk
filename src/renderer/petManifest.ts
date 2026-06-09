@@ -41,6 +41,22 @@ export interface WorkstationBox {
   height: number;
 }
 
+export interface WorkstationPoint {
+  x: number;
+  y: number;
+}
+
+export type WorkstationAssetLayer = "back" | "front";
+
+export interface WorkstationAsset {
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  layer?: WorkstationAssetLayer;
+}
+
 export interface WorkstationKey {
   id: string;
   label: string;
@@ -56,10 +72,17 @@ export interface WorkstationKeyRow {
 }
 
 export interface WorkstationKeyboard extends WorkstationBox {
+  renderMode?: "full" | "highlightOnly";
   rows: WorkstationKeyRow[];
 }
 
 export interface WorkstationManifest {
+  assets?: WorkstationAsset[];
+  handAnchors?: {
+    left?: WorkstationPoint;
+    right?: WorkstationPoint;
+    mouse?: WorkstationPoint;
+  };
   monitor?: WorkstationBox;
   keyboard?: WorkstationKeyboard;
   mouse?: WorkstationBox;
@@ -252,6 +275,8 @@ function assertOptionalWorkstation(value: unknown): void {
   assertOptionalBox(value.monitor, "monitor");
   assertOptionalKeyboard(value.keyboard);
   assertOptionalBox(value.mouse, "mouse");
+  assertOptionalAssets(value.assets);
+  assertOptionalHandAnchors(value.handAnchors);
 }
 
 function assertOptionalKeyboard(value: unknown): void {
@@ -261,7 +286,12 @@ function assertOptionalKeyboard(value: unknown): void {
 
   assertOptionalBox(value, "keyboard");
 
-  if (!isRecord(value) || !Array.isArray(value.rows) || value.rows.length === 0) {
+  if (
+    !isRecord(value) ||
+    (value.renderMode !== undefined && value.renderMode !== "full" && value.renderMode !== "highlightOnly") ||
+    !Array.isArray(value.rows) ||
+    value.rows.length === 0
+  ) {
     throw new Error("pet workstation keyboard rows are invalid");
   }
 
@@ -282,6 +312,54 @@ function assertOptionalKeyboard(value: unknown): void {
         throw new Error("pet workstation keyboard key is invalid");
       }
     }
+  }
+}
+
+function assertOptionalAssets(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("pet workstation assets must be an array");
+  }
+
+  for (const asset of value) {
+    if (
+      !isRecord(asset) ||
+      typeof asset.src !== "string" ||
+      !isFiniteNumber(asset.x) ||
+      !isFiniteNumber(asset.y) ||
+      !isPositiveInteger(asset.width) ||
+      !isPositiveInteger(asset.height) ||
+      (asset.layer !== undefined && asset.layer !== "back" && asset.layer !== "front")
+    ) {
+      throw new Error("pet workstation asset is invalid");
+    }
+  }
+}
+
+function assertOptionalHandAnchors(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    throw new Error("pet workstation hand anchors are invalid");
+  }
+
+  assertOptionalPoint(value.left, "left hand anchor");
+  assertOptionalPoint(value.right, "right hand anchor");
+  assertOptionalPoint(value.mouse, "mouse hand anchor");
+}
+
+function assertOptionalPoint(value: unknown, name: string): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value) || !isFiniteNumber(value.x) || !isFiniteNumber(value.y)) {
+    throw new Error(`pet workstation ${name} is invalid`);
   }
 }
 

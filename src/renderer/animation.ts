@@ -2,9 +2,11 @@ import type {
   PetManifest,
   PetSpritePlacement,
   PetStage,
+  WorkstationAssetLayer,
   WorkstationBox,
   WorkstationKeyboard,
   WorkstationKey,
+  WorkstationPoint,
 } from "./petManifest";
 
 export interface AnimationPlayer {
@@ -21,11 +23,21 @@ export interface PetInputActivity {
   receivedAt?: number;
 }
 
+export interface LoadedWorkstationAsset {
+  image: HTMLImageElement;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  layer: WorkstationAssetLayer;
+}
+
 export function createAnimationPlayer(
   context: CanvasRenderingContext2D,
   image: HTMLImageElement,
   manifest: PetManifest,
   state = "idle",
+  workstationAssets: LoadedWorkstationAsset[] = [],
 ): AnimationPlayer {
   let currentState = state;
   let animation = manifest.animations[currentState] ?? manifest.animations.idle;
@@ -50,7 +62,8 @@ export function createAnimationPlayer(
     const sprite = getSpritePlacement(manifest);
 
     context.clearRect(0, 0, stage.width, stage.height);
-    drawWorkstationBase(context, manifest, inputActivity, timestamp);
+    drawWorkstationAssets(context, workstationAssets, "back");
+    drawWorkstationBase(context, manifest, inputActivity, timestamp, workstationAssets.length > 0);
     context.drawImage(
       image,
       sourceX,
@@ -62,7 +75,8 @@ export function createAnimationPlayer(
       sprite.width,
       sprite.height,
     );
-    drawWorkstationControls(context, manifest, inputActivity, currentState, timestamp);
+    drawWorkstationAssets(context, workstationAssets, "front");
+    drawWorkstationControls(context, manifest, inputActivity, currentState, timestamp, workstationAssets.length > 0);
   }
 
   return {
@@ -113,13 +127,19 @@ function drawWorkstationBase(
   manifest: PetManifest,
   activity: PetInputActivity | null,
   timestamp: number,
+  hasAssetLayer: boolean,
 ): void {
   const workstation = manifest.workstation;
   if (!workstation) {
     return;
   }
 
-  if (workstation.monitor) {
+  if (workstation.monitor && hasAssetLayer && isRecentActivity(activity, timestamp, 650)) {
+    drawMonitorGlow(context, workstation.monitor);
+    return;
+  }
+
+  if (workstation.monitor && !hasAssetLayer) {
     drawMonitor(context, workstation.monitor, isRecentActivity(activity, timestamp, 650));
   }
 }
@@ -130,22 +150,49 @@ function drawWorkstationControls(
   activity: PetInputActivity | null,
   state: string,
   timestamp: number,
+  hasAssetLayer: boolean,
 ): void {
   const workstation = manifest.workstation;
   if (!workstation) {
     return;
   }
 
+  let keyTarget: InputTarget | null = null;
   if (workstation.keyboard) {
-    drawKeyboard(context, workstation.keyboard, activity, timestamp);
+    keyTarget = drawKeyboard(context, workstation.keyboard, activity, timestamp, hasAssetLayer);
   }
 
+  const mouseActive = state === "mousing" || (activity?.kind === "mouse" && isRecentActivity(activity, timestamp, 650));
   if (workstation.mouse) {
-    drawMouse(
-      context,
-      workstation.mouse,
-      state === "mousing" || (activity?.kind === "mouse" && isRecentActivity(activity, timestamp, 650)),
-    );
+    drawMouse(context, workstation.mouse, mouseActive, hasAssetLayer);
+  }
+
+  if (keyTarget) {
+    drawHandCue(context, getKeyboardHandAnchor(manifest, keyTarget), keyTarget, "rgba(104, 211, 145, 0.92)");
+  }
+
+  if (workstation.mouse && mouseActive) {
+    const mouseTarget = {
+      x: workstation.mouse.x + workstation.mouse.width / 2,
+      y: workstation.mouse.y + workstation.mouse.height * 0.56,
+      label: "",
+      hand: "mouse" as const,
+    };
+    drawHandCue(context, getMouseHandAnchor(manifest), mouseTarget, "rgba(99, 179, 237, 0.9)");
+  }
+}
+
+function drawWorkstationAssets(
+  context: CanvasRenderingContext2D,
+  assets: LoadedWorkstationAsset[],
+  layer: WorkstationAssetLayer,
+): void {
+  for (const asset of assets) {
+    if (asset.layer !== layer) {
+      continue;
+    }
+
+    context.drawImage(asset.image, asset.x, asset.y, asset.width, asset.height);
   }
 }
 
@@ -166,24 +213,46 @@ function drawMonitor(
   context.restore();
 }
 
+function drawMonitorGlow(context: CanvasRenderingContext2D, box: WorkstationBox): void {
+  context.save();
+  context.fillStyle = "rgba(124, 203, 255, 0.24)";
+  roundRect(context, box.x + 5, box.y + 5, box.width - 10, box.height - 12, 5);
+  context.fill();
+  context.restore();
+}
+
+interface InputTarget extends WorkstationPoint {
+  label: string;
+  hand: "left" | "right" | "mouse";
+}
+
 function drawKeyboard(
   context: CanvasRenderingContext2D,
   keyboard: WorkstationKeyboard,
   activity: PetInputActivity | null,
   timestamp: number,
-): void {
+  hasAssetLayer: boolean,
+): InputTarget | null {
   const activeKey = activity?.kind === "keyboard" && isRecentActivity(activity, timestamp, 360)
     ? normalizeKey(activity.code ?? activity.label ?? "")
     : null;
+  const renderMode = keyboard.renderMode ?? (hasAssetLayer ? "highlightOnly" : "full");
+  const activeTarget = activeKey ? findActiveKeyTarget(keyboard, activeKey) : null;
 
   context.save();
-  context.fillStyle = "rgba(39, 46, 57, 0.92)";
-  roundRect(context, keyboard.x, keyboard.y, keyboard.width, keyboard.height, 7);
-  context.fill();
+  if (renderMode === "full") {
+    context.fillStyle = "rgba(39, 46, 57, 0.92)";
+    roundRect(context, keyboard.x, keyboard.y, keyboard.width, keyboard.height, 7);
+    context.fill();
+  }
 
   for (const row of keyboard.rows) {
     for (const key of row.keys) {
       const pressed = activeKey ? keyMatches(key, activeKey) : false;
+      if (renderMode === "highlightOnly" && !pressed) {
+        continue;
+      }
+
       const x = keyboard.x + key.x;
       const y = keyboard.y + row.y + (pressed ? 1 : 0);
 
@@ -199,9 +268,19 @@ function drawKeyboard(
   }
 
   context.restore();
+  return activeTarget;
 }
 
-function drawMouse(context: CanvasRenderingContext2D, box: WorkstationBox, active: boolean): void {
+function drawMouse(
+  context: CanvasRenderingContext2D,
+  box: WorkstationBox,
+  active: boolean,
+  hasAssetLayer: boolean,
+): void {
+  if (hasAssetLayer && !active) {
+    return;
+  }
+
   context.save();
   context.fillStyle = active ? "rgba(104, 211, 145, 0.94)" : "rgba(236, 241, 247, 0.92)";
   roundRect(context, box.x, box.y, box.width, box.height, Math.min(box.width, box.height) / 2);
@@ -213,6 +292,73 @@ function drawMouse(context: CanvasRenderingContext2D, box: WorkstationBox, activ
   context.lineTo(box.x + box.width / 2, box.y + box.height * 0.44);
   context.stroke();
   context.restore();
+}
+
+function findActiveKeyTarget(keyboard: WorkstationKeyboard, activeKey: string): InputTarget | null {
+  for (const row of keyboard.rows) {
+    for (const key of row.keys) {
+      if (!keyMatches(key, activeKey)) {
+        continue;
+      }
+
+      const x = keyboard.x + key.x + key.width / 2;
+      return {
+        x,
+        y: keyboard.y + row.y + row.height / 2,
+        label: key.label,
+        hand: x < keyboard.x + keyboard.width * 0.54 ? "left" : "right",
+      };
+    }
+  }
+
+  return null;
+}
+
+function drawHandCue(
+  context: CanvasRenderingContext2D,
+  anchor: WorkstationPoint,
+  target: InputTarget,
+  color: string,
+): void {
+  context.save();
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 2;
+  context.lineCap = "round";
+  context.beginPath();
+  context.moveTo(anchor.x, anchor.y);
+  context.quadraticCurveTo((anchor.x + target.x) / 2, Math.min(anchor.y, target.y) - 16, target.x, target.y);
+  context.stroke();
+  context.globalAlpha = 0.9;
+  context.beginPath();
+  context.arc(target.x, target.y, target.hand === "mouse" ? 5 : 4, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function getKeyboardHandAnchor(manifest: PetManifest, target: InputTarget): WorkstationPoint {
+  const anchors = manifest.workstation?.handAnchors;
+  if (target.hand === "left" && anchors?.left) {
+    return anchors.left;
+  }
+
+  if (target.hand === "right" && anchors?.right) {
+    return anchors.right;
+  }
+
+  const sprite = getSpritePlacement(manifest);
+  return target.hand === "left"
+    ? { x: sprite.x + sprite.width * 0.55, y: sprite.y + sprite.height * 0.64 }
+    : { x: sprite.x + sprite.width * 0.72, y: sprite.y + sprite.height * 0.64 };
+}
+
+function getMouseHandAnchor(manifest: PetManifest): WorkstationPoint {
+  if (manifest.workstation?.handAnchors?.mouse) {
+    return manifest.workstation.handAnchors.mouse;
+  }
+
+  const sprite = getSpritePlacement(manifest);
+  return { x: sprite.x + sprite.width * 0.72, y: sprite.y + sprite.height * 0.66 };
 }
 
 function keyMatches(key: WorkstationKey, activeKey: string): boolean {

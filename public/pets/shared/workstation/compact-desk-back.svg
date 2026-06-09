@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="286" height="246" viewBox="0 0 286 246">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9ad7ff" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#2b6f98" stop-opacity="0.72"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f3745"/>
+      <stop offset="1" stop-color="#171d26"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+  </defs>
+  <g opacity="0.85">
+    <ellipse cx="222" cy="85" rx="55" ry="43" fill="#79d7ff" opacity="0.12" filter="url(#softGlow)"/>
+    <rect x="184" y="48" width="76" height="58" rx="8" fill="url(#frame)"/>
+    <rect x="190" y="54" width="64" height="43" rx="5" fill="url(#screen)"/>
+    <path d="M197 66h22M197 75h34M197 84h17" stroke="#eaf9ff" stroke-width="2" stroke-linecap="round" opacity="0.42"/>
+    <path d="M226 63l8 7-16 16" stroke="#eaf9ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.36"/>
+    <rect x="216" y="106" width="12" height="14" rx="2" fill="#202833"/>
+    <path d="M204 121h40" stroke="#202833" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

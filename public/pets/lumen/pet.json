@@ -63,6 +63,38 @@
     }
   },
   "workstation": {
+    "assets": [
+      {
+        "src": "../shared/workstation/compact-desk-back.svg",
+        "x": 0,
+        "y": 0,
+        "width": 286,
+        "height": 246,
+        "layer": "back"
+      },
+      {
+        "src": "../shared/workstation/compact-desk-front.svg",
+        "x": 0,
+        "y": 0,
+        "width": 286,
+        "height": 246,
+        "layer": "front"
+      }
+    ],
+    "handAnchors": {
+      "left": {
+        "x": 116,
+        "y": 178
+      },
+      "right": {
+        "x": 150,
+        "y": 178
+      },
+      "mouse": {
+        "x": 158,
+        "y": 180
+      }
+    },
     "monitor": {
       "x": 184,
       "y": 48,
@@ -70,6 +102,7 @@
       "height": 58
     },
     "keyboard": {
+      "renderMode": "highlightOnly",
       "x": 104,
       "y": 176,
       "width": 154,
