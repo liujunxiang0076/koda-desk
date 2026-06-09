@@ -19,9 +19,12 @@ export function createAnimationPlayer(
   let lastFrameAt = 0;
 
   function draw(timestamp: number): void {
-    if (lastFrameAt === 0 || timestamp - lastFrameAt >= frameDuration) {
-      frameCursor = nextCursor(frameCursor, animation.frames.length, animation.loop);
+    if (lastFrameAt === 0) {
       lastFrameAt = timestamp;
+    } else if (timestamp - lastFrameAt >= frameDuration) {
+      const steps = Math.floor((timestamp - lastFrameAt) / frameDuration);
+      frameCursor = advanceCursor(frameCursor, animation.frames.length, animation.loop, steps);
+      lastFrameAt += steps * frameDuration;
     }
 
     const frameIndex = animation.frames[frameCursor] ?? animation.frames[0] ?? 0;
@@ -63,13 +66,13 @@ export function createAnimationPlayer(
   };
 }
 
-function nextCursor(current: number, total: number, loop: boolean): number {
+function advanceCursor(current: number, total: number, loop: boolean, steps: number): number {
   if (total <= 1) {
     return 0;
   }
 
-  const next = current + 1;
-  return next >= total ? (loop ? 0 : total - 1) : next;
+  const next = current + Math.max(1, steps);
+  return loop ? next % total : Math.min(next, total - 1);
 }
 
 function normalizeFps(value: number): number {
